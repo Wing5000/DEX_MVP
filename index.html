@@ -350,59 +350,14 @@
                 <button class="btn btn-ghost btn-sm" onclick="closeModal('tokenModal')">✕</button>
             </div>
             <div class="modal-body">
-                <input type="text" class="input w-full mb-3" placeholder="Search name or paste address">
-                
+                <input id="tokenSearch" type="text" class="input w-full mb-3" placeholder="Search name or paste address">
+
                 <div class="mb-3">
                     <div class="text-sm text-muted mb-2">Popular tokens</div>
-                    <div class="flex gap-2">
-                        <button class="btn btn-secondary btn-sm">ETH</button>
-                        <button class="btn btn-secondary btn-sm">USDC</button>
-                        <button class="btn btn-secondary btn-sm">AAA</button>
-                        <button class="btn btn-secondary btn-sm">BBB</button>
-                    </div>
+                    <div id="popularTokens" class="flex gap-2"></div>
                 </div>
-                
-                <div class="token-list">
-                    <div class="token-item" data-token="AAA">
-                        <div class="flex items-center justify-between token-row">
-                            <div class="flex items-center gap-2">
-                                <div class="token-icon"></div>
-                                <div>
-                                    <div>AAA</div>
-                                    <div class="text-xs text-muted">AAA Token</div>
-                                </div>
-                            </div>
-                            <div class="text-mono">1,234.56</div>
-                        </div>
-                    </div>
-                    <div class="token-item" data-token="BBB">
-                        <div class="flex items-center justify-between token-row">
-                            <div class="flex items-center gap-2">
-                                <div class="token-icon" style="background: linear-gradient(135deg, #F59E0B, #EF4444)"></div>
-                                <div>
-                                    <div>BBB</div>
-                                    <div class="text-xs text-muted">BBB Token</div>
-                                </div>
-                            </div>
-                            <div class="text-mono">567.89</div>
-                        </div>
-                    </div>
-                    <div class="token-item" data-token="USDC">
-                        <div class="flex items-center justify-between token-row">
-                            <div class="flex items-center gap-2">
-                                <div class="token-icon" style="background: linear-gradient(135deg, #10B981, #3B82F6)"></div>
-                                <div>
-                                    <div class="flex items-center gap-1">
-                                        USDC
-                                        <span class="badge badge-warning">⚠️</span>
-                                    </div>
-                                    <div class="text-xs text-muted">USD Coin</div>
-                                </div>
-                            </div>
-                            <div class="text-mono">10,000.00</div>
-                        </div>
-                    </div>
-                </div>
+
+                <div id="tokenList" class="token-list"></div>
             </div>
         </div>
     </div>

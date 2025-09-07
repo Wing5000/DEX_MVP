@@ -26,6 +26,7 @@
         const addresses = require('./contractMap.json');
         const erc20Abi = [
             'function decimals() view returns (uint8)',
+            'function symbol() view returns (string)',
             'function balanceOf(address owner) view returns (uint256)',
             'function allowance(address owner, address spender) view returns (uint256)',
             'function approve(address spender, uint256 amount) returns (bool)'
@@ -35,6 +36,77 @@
             'function deposit() payable',
             'function withdraw(uint256)'
         ];
+
+        const tokenCache = JSON.parse(localStorage.getItem('tokenCache') || '{}');
+        let tokens = [];
+
+        async function getTokenMetadata(address) {
+            const addr = ethers.utils.getAddress(address);
+            if (tokenCache[addr]) return tokenCache[addr];
+            const contract = new ethers.Contract(addr, erc20Abi, provider);
+            const [symbol, decimals] = await Promise.all([
+                contract.symbol(),
+                contract.decimals()
+            ]);
+            tokenCache[addr] = { symbol, decimals };
+            localStorage.setItem('tokenCache', JSON.stringify(tokenCache));
+            return tokenCache[addr];
+        }
+
+        function addTokenToUI(token) {
+            const listEl = document.getElementById('tokenList');
+            const item = document.createElement('div');
+            item.className = 'token-item';
+            item.dataset.address = token.address;
+            item.innerHTML = `<div class="flex items-center justify-between token-row">
+                                <div class="flex items-center gap-2">
+                                    <div class="token-icon" style="background-image: url(${token.icon}); background-size: cover;"></div>
+                                    <div>
+                                        <div>${token.symbol}</div>
+                                        <div class="text-xs text-muted">${token.name || ''}</div>
+                                    </div>
+                                </div>
+                              </div>`;
+            item.addEventListener('click', () => selectToken(token.address));
+            listEl.appendChild(item);
+        }
+
+        async function loadTokens() {
+            const res = await fetch('./tokens.json');
+            tokens = await res.json();
+            const popularEl = document.getElementById('popularTokens');
+            tokens.forEach(t => {
+                addTokenToUI(t);
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-secondary btn-sm';
+                btn.textContent = t.symbol;
+                btn.addEventListener('click', () => selectToken(t.address));
+                popularEl.appendChild(btn);
+            });
+        }
+        loadTokens();
+
+        document.getElementById('tokenSearch').addEventListener('change', async (e) => {
+            const val = e.target.value.trim();
+            if (ethers.utils.isAddress(val) && !tokens.find(t => t.address.toLowerCase() === val.toLowerCase())) {
+                try {
+                    const meta = await getTokenMetadata(val);
+                    const newToken = {
+                        address: ethers.utils.getAddress(val),
+                        symbol: meta.symbol,
+                        decimals: meta.decimals,
+                        name: meta.symbol,
+                        icon: `https://via.placeholder.com/32/aaa/ffffff?text=${meta.symbol[0] || '?'}`
+                    };
+                    tokens.push(newToken);
+                    addTokenToUI(newToken);
+                    e.target.value = '';
+                    showToast(`Imported ${meta.symbol}`, 'success');
+                } catch (err) {
+                    showToast('Could not fetch token metadata', 'error');
+                }
+            }
+        });
 
         document.getElementById('networkName').textContent = sepoliaConfig.chainName;
 
@@ -80,9 +152,23 @@
         }
         
         // Select Token
-        function selectToken(token) {
+        async function selectToken(address) {
+            const meta = await getTokenMetadata(address);
+            const tokenInfo = tokens.find(t => t.address.toLowerCase() === address.toLowerCase());
+            if (tokenInfo && ((tokenInfo.symbol && tokenInfo.symbol !== meta.symbol) || (tokenInfo.decimals != null && tokenInfo.decimals !== meta.decimals))) {
+                showToast('Token metadata mismatch', 'warning');
+            }
+            const target = document.getElementById(window.tokenSide === 'from' ? 'tokenIn' : 'tokenOut');
+            target.dataset.address = address;
+            const iconEl = target.querySelector('.token-icon');
+            if (iconEl) {
+                iconEl.style.backgroundImage = `url(${tokenInfo?.icon || 'https://via.placeholder.com/32/ccc/ffffff'})`;
+                iconEl.style.backgroundSize = 'cover';
+            }
+            const span = target.querySelector('span');
+            if (span) span.textContent = meta.symbol;
             closeModal('tokenModal');
-            showToast(`Selected ${token}`, 'success');
+            showToast(`Selected ${meta.symbol}`, 'success');
         }
         
         // Connect Wallet
