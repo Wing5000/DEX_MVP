@@ -87,21 +87,26 @@
         function showToast(message, type = 'info') {
             const toast = document.createElement('div');
             toast.className = 'toast';
-            
+
             const icon = {
                 success: '✓',
                 error: '✕',
                 warning: '⚠️',
                 info: 'ℹ️'
             }[type];
-            
-            toast.innerHTML = `
-                <span style="font-size: 1.25rem">${icon}</span>
-                <span>${message}</span>
-            `;
-            
+
+            const iconEl = document.createElement('span');
+            iconEl.style.fontSize = '1.25rem';
+            iconEl.textContent = icon;
+
+            const messageEl = document.createElement('span');
+            messageEl.textContent = message;
+
+            toast.appendChild(iconEl);
+            toast.appendChild(messageEl);
+
             document.getElementById('toastContainer').appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.style.animation = 'slideOut 0.3s ease';
                 setTimeout(() => toast.remove(), 300);
