@@ -20,6 +20,20 @@
             provider = new ethers.providers.JsonRpcProvider(sepoliaConfig.rpcUrl);
         }
 
+        const dexAdapter = require('./src/adapters/dexAdapter');
+        const addresses = require('./contractMap.json');
+        const erc20Abi = [
+            'function decimals() view returns (uint8)',
+            'function balanceOf(address owner) view returns (uint256)',
+            'function allowance(address owner, address spender) view returns (uint256)',
+            'function approve(address spender, uint256 amount) returns (bool)'
+        ];
+        const wethAbi = [
+            ...erc20Abi,
+            'function deposit() payable',
+            'function withdraw(uint256)'
+        ];
+
         document.getElementById('networkName').textContent = sepoliaConfig.chainName;
 
         const networkListEl = document.getElementById('networkList');
@@ -136,11 +150,90 @@
         }
         
         // Execute Swap
-        function executeSwap() {
-            showToast('Transaction submitted', 'info');
-            setTimeout(() => {
-                showToast('Swap successful! 100 AAA → 2,847.32 BBB', 'success');
-            }, 2000);
+        async function executeSwap() {
+            try {
+                const signer = provider.getSigner();
+                const user = await signer.getAddress();
+
+                const tokenInSel = document.getElementById('tokenIn');
+                const tokenOutSel = document.getElementById('tokenOut');
+                const amountInInput = document.getElementById('tokenInAmount');
+
+                let tokenIn = tokenInSel?.dataset.address || 'eth';
+                let tokenOut = tokenOutSel?.dataset.address || 'eth';
+                const amountInRaw = amountInInput?.value || '0';
+
+                const slippageText = document.getElementById('slippage')?.textContent || '0.5%';
+                const deadlineText = document.getElementById('deadline')?.textContent || '20m';
+                const slippagePct = parseFloat(slippageText);
+                const deadlineMinutes = parseInt(deadlineText) || 20;
+
+                let tokenInContract = tokenIn.toLowerCase() === 'eth'
+                    ? new ethers.Contract(addresses.weth, wethAbi, signer)
+                    : new ethers.Contract(tokenIn, erc20Abi, signer);
+                let tokenOutContract = tokenOut.toLowerCase() === 'eth'
+                    ? new ethers.Contract(addresses.weth, wethAbi, signer)
+                    : new ethers.Contract(tokenOut, erc20Abi, signer);
+
+                if (tokenIn.toLowerCase() === 'eth') {
+                    const wrapTx = await tokenInContract.deposit({ value: ethers.utils.parseEther(amountInRaw) });
+                    await wrapTx.wait();
+                    tokenIn = addresses.weth;
+                }
+
+                const [decIn, decOut, balIn, balOut] = await Promise.all([
+                    tokenInContract.decimals(),
+                    tokenOutContract.decimals(),
+                    tokenInContract.balanceOf(user),
+                    tokenOutContract.balanceOf(user)
+                ]);
+
+                const amountIn = ethers.utils.parseUnits(amountInRaw, decIn);
+                if (balIn.lt(amountIn)) {
+                    showToast('Insufficient balance', 'error');
+                    return;
+                }
+
+                const quoteOut = await dexAdapter.quote(tokenIn, tokenOut, amountIn, provider);
+                const slippageBps = Math.floor(slippagePct * 100);
+                const minOut = quoteOut.mul(10000 - slippageBps).div(10000);
+
+                const minEl = document.getElementById('minReceived');
+                if (minEl) {
+                    minEl.textContent = ethers.utils.formatUnits(minOut, decOut);
+                }
+
+                const allowance = await tokenInContract.allowance(user, addresses.router);
+                if (allowance.lt(amountIn)) {
+                    const approveTx = await tokenInContract.approve(addresses.router, amountIn);
+                    await approveTx.wait();
+                }
+
+                const deadline = Math.floor(Date.now() / 1000) + deadlineMinutes * 60;
+
+                const txRequest = await dexAdapter.buildSwapTx({
+                    tokenIn,
+                    tokenOut,
+                    amountIn,
+                    amountOutMin: minOut,
+                    to: user,
+                    deadline
+                }, signer);
+
+                const txResponse = await signer.sendTransaction(txRequest);
+                showToast('Transaction submitted', 'info');
+                await txResponse.wait();
+
+                if (tokenOut.toLowerCase() === 'eth') {
+                    const unwrapTx = await tokenOutContract.withdraw(minOut);
+                    await unwrapTx.wait();
+                }
+
+                showToast('Swap successful!', 'success');
+            } catch (err) {
+                console.error(err);
+                showToast('Swap failed', 'error');
+            }
         }
         
         // Switch Pool Tab

@@ -120,9 +120,9 @@
                         <span class="text-sm text-muted">Balance: 1,234.56</span>
                     </div>
                     <div class="swap-input-container">
-                        <input type="text" class="swap-input-field" placeholder="0.0" value="100">
+                        <input id="tokenInAmount" type="text" class="swap-input-field" placeholder="0.0" value="100">
                         <button class="btn btn-ghost btn-sm">MAX</button>
-                        <div class="token-select" onclick="openTokenModal('from')">
+                        <div id="tokenIn" class="token-select" data-address="eth" onclick="openTokenModal('from')">
                             <div class="token-icon"></div>
                             <span>AAA</span>
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
@@ -144,8 +144,8 @@
                         <span class="text-sm text-muted">Balance: 567.89</span>
                     </div>
                     <div class="swap-input-container">
-                        <input type="text" class="swap-input-field" placeholder="0.0" value="2,847.32">
-                        <div class="token-select" onclick="openTokenModal('to')">
+                        <input id="tokenOutAmount" type="text" class="swap-input-field" placeholder="0.0" value="2,847.32">
+                        <div id="tokenOut" class="token-select" data-address="eth" onclick="openTokenModal('to')">
                             <div class="token-icon" style="background: linear-gradient(135deg, #F59E0B, #EF4444)"></div>
                             <span>BBB</span>
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
@@ -154,11 +154,11 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="price-info mt-3">
                     <div class="price-info-row">
                         <span class="price-info-label">Rate</span>
-                        <span class="price-info-value">
+                        <span class="price-info-value" id="rate">
                             1 AAA = 28.47 BBB
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" style="cursor: pointer;">
                                 <path d="M8 3v5l3 3m5-3a8 8 0 11-16 0 8 8 0 0116 0z" stroke="currentColor" fill="none"/>
@@ -167,22 +167,33 @@
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">Price Impact</span>
-                        <span class="price-info-value">
-                            <span class="badge badge-success">0.05%</span>
-                        </span>
+                        <span class="price-info-value"><span id="priceImpact" class="badge badge-success">0.00%</span></span>
                     </div>
                     <div class="price-info-row">
-                        <span class="price-info-label">Network Fee</span>
-                        <span class="price-info-value">~$3.24</span>
+                        <span class="price-info-label">Fee</span>
+                        <span class="price-info-value" id="fee">~$0.00</span>
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">Min. Received</span>
-                        <span class="price-info-value text-mono">2,818.85 BBB</span>
+                        <span class="price-info-value text-mono" id="minReceived">0</span>
+                    </div>
+                    <div class="price-info-row">
+                        <span class="price-info-label">Slippage</span>
+                        <span class="price-info-value" id="slippage">0.5%</span>
+                    </div>
+                    <div class="price-info-row">
+                        <span class="price-info-label">Deadline</span>
+                        <span class="price-info-value" id="deadline">20m</span>
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">Route</span>
                         <span class="price-info-value text-sm">AAA → USDC → BBB</span>
                     </div>
+                </div>
+                <div class="slippage-options mt-2">
+                    <button class="slippage-btn active">0.1%</button>
+                    <button class="slippage-btn">0.5%</button>
+                    <button class="slippage-btn">1%</button>
                 </div>
                 
                 <button class="btn btn-primary btn-full btn-lg" onclick="executeSwap()">
