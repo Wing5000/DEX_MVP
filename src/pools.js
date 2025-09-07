@@ -1,6 +1,6 @@
 const { ethers } = require('ethers');
 const dexAdapter = require('./adapters/dexAdapter');
-const addresses = require('../contractMap.json');
+const addresses = require('../contractMap');
 const { fromBaseUnits } = require('./utils');
 
 async function defaultPriceOracle() {

@@ -1,6 +1,6 @@
 const { Contract } = require('ethers');
 const dexAdapter = require('./adapters/dexAdapter');
-const addresses = require('../contractMap.json');
+const addresses = require('../contractMap');
 
 async function getPoolInfo(tokenA, tokenB, provider) {
   const state = await dexAdapter.getPoolState(tokenA, tokenB, provider);
