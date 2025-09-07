@@ -21,6 +21,7 @@
         }
 
         const dexAdapter = require('./src/adapters/dexAdapter');
+        const liquidity = require('./src/liquidity');
         const addresses = require('./contractMap.json');
         const erc20Abi = [
             'function decimals() view returns (uint8)',
@@ -335,6 +336,125 @@
                 btn.classList.add('active');
             });
         });
+
+        // Ensure token approvals
+        async function ensureApproval(token, amount, signer, spender) {
+            const contract = new ethers.Contract(token, erc20Abi, signer);
+            const owner = await signer.getAddress();
+            const allowance = await contract.allowance(owner, spender);
+            if (allowance.lt(amount)) {
+                const tx = await contract.approve(spender, amount);
+                await tx.wait();
+            }
+        }
+
+        const tokenAInput = document.getElementById('tokenAAmount');
+        const tokenBInput = document.getElementById('tokenBAmount');
+
+        async function refreshAddLiquidity(changed) {
+            const tokenA = document.getElementById('tokenASelect').dataset.address;
+            const tokenB = document.getElementById('tokenBSelect').dataset.address;
+            if (!tokenA || !tokenB) return;
+            const pool = await liquidity.getPoolInfo(tokenA, tokenB, provider);
+            if (!pool || !pool.reserves) return;
+            const reserveA = parseFloat(ethers.utils.formatUnits(pool.reserves[tokenA.toLowerCase()] || '0', 18));
+            const reserveB = parseFloat(ethers.utils.formatUnits(pool.reserves[tokenB.toLowerCase()] || '0', 18));
+            if (changed === 'A') {
+                const amountA = parseFloat(tokenAInput.value) || 0;
+                const amountB = liquidity.calculateCounterpart(amountA, reserveA, reserveB);
+                tokenBInput.value = amountB ? amountB.toFixed(6) : '';
+                const share = liquidity.calculatePoolShare(amountA, reserveA);
+                document.getElementById('poolShare').textContent = share.toFixed(2) + '%';
+            } else {
+                const amountB = parseFloat(tokenBInput.value) || 0;
+                const amountA = liquidity.calculateCounterpart(amountB, reserveB, reserveA);
+                tokenAInput.value = amountA ? amountA.toFixed(6) : '';
+                const share = liquidity.calculatePoolShare(amountA, reserveA);
+                document.getElementById('poolShare').textContent = share.toFixed(2) + '%';
+            }
+            if (reserveA && reserveB) {
+                document.getElementById('priceAB').textContent = (reserveA / reserveB).toFixed(4);
+                document.getElementById('priceBA').textContent = (reserveB / reserveA).toFixed(4);
+            }
+        }
+
+        if (tokenAInput && tokenBInput) {
+            tokenAInput.addEventListener('input', () => refreshAddLiquidity('A'));
+            tokenBInput.addEventListener('input', () => refreshAddLiquidity('B'));
+        }
+
+        const addBtn = document.getElementById('addLiquidityBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', async () => {
+                const signer = provider.getSigner();
+                const tokenA = document.getElementById('tokenASelect').dataset.address;
+                const tokenB = document.getElementById('tokenBSelect').dataset.address;
+                const amountA = ethers.utils.parseUnits(tokenAInput.value || '0', 18);
+                const amountB = ethers.utils.parseUnits(tokenBInput.value || '0', 18);
+                await ensureApproval(tokenA, amountA, signer, addresses.router);
+                await ensureApproval(tokenB, amountB, signer, addresses.router);
+                const to = await signer.getAddress();
+                const deadlineMin = parseInt(document.getElementById('txDeadline').value) || 30;
+                const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
+                const tx = await liquidity.buildAddLiquidityTx({ tokenA, tokenB, amountA, amountB, to, deadline }, signer);
+                await signer.sendTransaction(tx);
+                showToast('Add liquidity transaction sent', 'success');
+            });
+        }
+
+        async function updateRemoveInfo(pct) {
+            const tokenA = document.getElementById('tokenASelect').dataset.address;
+            const tokenB = document.getElementById('tokenBSelect').dataset.address;
+            if (!tokenA || !tokenB) return;
+            const pool = await liquidity.getPoolInfo(tokenA, tokenB, provider);
+            if (!pool || !pool.pairAddress) return;
+            const signer = provider.getSigner();
+            const user = await signer.getAddress();
+            const lp = new ethers.Contract(pool.pairAddress, erc20Abi, provider);
+            const [balance, totalSupply] = await Promise.all([
+                lp.balanceOf(user),
+                lp.totalSupply()
+            ]);
+            const portion = balance.mul(Math.floor(pct * 100)).div(100);
+            const amountA = ethers.BigNumber.from(pool.reserves[tokenA.toLowerCase()] || '0').mul(portion).div(totalSupply);
+            const amountB = ethers.BigNumber.from(pool.reserves[tokenB.toLowerCase()] || '0').mul(portion).div(totalSupply);
+            document.getElementById('pooledTokenA').textContent = `${ethers.utils.formatUnits(amountA, 18)} AAA`;
+            document.getElementById('pooledTokenB').textContent = `${ethers.utils.formatUnits(amountB, 18)} BBB`;
+            const share = portion.mul(10000).div(totalSupply).toNumber() / 100;
+            document.getElementById('userPoolShare').textContent = share.toFixed(2) + '%';
+        }
+
+        const removePct = document.getElementById('removePercentOptions');
+        if (removePct) {
+            removePct.addEventListener('click', (e) => {
+                const btn = e.target.closest('.slippage-btn');
+                if (!btn) return;
+                const pct = parseInt(btn.textContent) / 100;
+                updateRemoveInfo(pct);
+            });
+        }
+
+        const removeBtn = document.getElementById('removeLiquidityBtn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', async () => {
+                const signer = provider.getSigner();
+                const tokenA = document.getElementById('tokenASelect').dataset.address;
+                const tokenB = document.getElementById('tokenBSelect').dataset.address;
+                const pool = await liquidity.getPoolInfo(tokenA, tokenB, provider);
+                if (!pool || !pool.pairAddress) return;
+                const user = await signer.getAddress();
+                const lp = new ethers.Contract(pool.pairAddress, erc20Abi, signer);
+                const balance = await lp.balanceOf(user);
+                const pct = parseInt(document.querySelector('#removePercentOptions .slippage-btn.active').textContent) / 100;
+                const liquidityPortion = balance.mul(Math.floor(pct * 100)).div(100);
+                await ensureApproval(pool.pairAddress, liquidityPortion, signer, addresses.router);
+                const deadlineMin = parseInt(document.getElementById('txDeadline').value) || 30;
+                const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
+                const tx = await liquidity.buildRemoveLiquidityTx({ tokenA, tokenB, liquidity: liquidityPortion, to: user, deadline }, signer);
+                await signer.sendTransaction(tx);
+                showToast('Remove liquidity transaction sent', 'success');
+            });
+        }
 
         // Token list hover and selection using event delegation
         const tokenList = document.querySelector('.token-list');
