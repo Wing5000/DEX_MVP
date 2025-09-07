@@ -9,7 +9,34 @@
         // Check for saved theme preference
         const savedTheme = localStorage.getItem('theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
-        
+
+        const DEFAULT_CHAIN_ID = 11155111;
+        const sepoliaConfig = window.networkConfig[DEFAULT_CHAIN_ID];
+        let provider;
+
+        if (window.ethereum) {
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+        } else {
+            provider = new ethers.providers.JsonRpcProvider(sepoliaConfig.rpcUrl);
+        }
+
+        document.getElementById('networkName').textContent = sepoliaConfig.chainName;
+
+        const networkListEl = document.getElementById('networkList');
+        Object.keys(window.networkConfig).forEach(id => {
+            const cfg = window.networkConfig[id];
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-secondary btn-full justify-between';
+            btn.innerHTML = `<span>${cfg.chainName}</span>`;
+            btn.addEventListener('click', () => selectNetwork(parseInt(id)));
+            if (parseInt(id) === DEFAULT_CHAIN_ID) {
+                const indicator = document.createElement('span');
+                indicator.className = 'network-indicator';
+                btn.appendChild(indicator);
+            }
+            networkListEl.appendChild(btn);
+        });
+
         // Modal Functions
         function openModal(modalId) {
             document.getElementById(modalId).classList.add('active');
@@ -43,22 +70,69 @@
         }
         
         // Connect Wallet
-        function connectWallet(provider) {
+        async function connectWallet(providerName) {
             closeModal('walletModal');
+            const cfg = window.networkConfig[DEFAULT_CHAIN_ID];
+
+            if (window.ethereum) {
+                try {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+                    if (currentChain !== cfg.chainIdHex) {
+                        await window.ethereum.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [{
+                                chainId: cfg.chainIdHex,
+                                chainName: cfg.chainName,
+                                rpcUrls: [cfg.rpcUrl],
+                                blockExplorerUrls: [cfg.explorerUrl],
+                                nativeCurrency: cfg.nativeCurrency
+                            }]
+                        });
+                    }
+                    provider = new ethers.providers.Web3Provider(window.ethereum);
+                } catch (err) {
+                    showToast('Wallet connection failed', 'error');
+                    return;
+                }
+            } else {
+                provider = new ethers.providers.JsonRpcProvider(cfg.rpcUrl);
+            }
+
             document.getElementById('connectBtn').innerHTML = '0x1234...5678';
             document.getElementById('connectBtn').classList.remove('btn-primary');
             document.getElementById('connectBtn').classList.add('btn-secondary');
-            showToast(`Connected with ${provider}`, 'success');
-            
-            // Switch to swap screen after connecting
+            showToast(`Connected with ${providerName}`, 'success');
+
             switchScreen('swap');
         }
-        
+
         // Select Network
-        function selectNetwork(network) {
+        async function selectNetwork(chainId) {
             closeModal('networkModal');
-            document.querySelector('.network-badge span:nth-child(2)').textContent = network;
-            showToast(`Switched to ${network}`, 'success');
+            const cfg = window.networkConfig[chainId];
+            document.getElementById('networkName').textContent = cfg.chainName;
+
+            if (window.ethereum) {
+                const currentChain = await window.ethereum.request({ method: 'eth_chainId' });
+                if (currentChain !== cfg.chainIdHex) {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: cfg.chainIdHex,
+                            chainName: cfg.chainName,
+                            rpcUrls: [cfg.rpcUrl],
+                            blockExplorerUrls: [cfg.explorerUrl],
+                            nativeCurrency: cfg.nativeCurrency
+                        }]
+                    });
+                }
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                showToast(`Switched to ${cfg.chainName}`, 'success');
+            } else {
+                provider = new ethers.providers.JsonRpcProvider(cfg.rpcUrl);
+                showToast(`No wallet found. Using ${cfg.chainName} RPC`, 'info');
+            }
         }
         
         // Execute Swap
