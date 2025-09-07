@@ -14,10 +14,17 @@
         const sepoliaConfig = window.networkConfig[DEFAULT_CHAIN_ID];
         let provider;
 
-        if (window.ethereum) {
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-        } else {
-            provider = new ethers.providers.JsonRpcProvider(sepoliaConfig.rpcUrl);
+        try {
+            if (window.ethereum) {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+            } else {
+                new URL(sepoliaConfig.rpcUrl);
+                provider = new ethers.providers.JsonRpcProvider(sepoliaConfig.rpcUrl);
+            }
+        } catch (err) {
+            showToast('Invalid RPC URL', 'error');
+            console.error('Provider initialization failed:', err);
+            throw err;
         }
 
         const GAS_MULTIPLIER = parseFloat(localStorage.getItem('gasMultiplier') || '1.15');
