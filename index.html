@@ -219,14 +219,14 @@
                 <div class="mb-3">
                     <label class="input-label">Select Pair</label>
                     <div class="flex gap-2">
-                        <div class="token-select" style="flex: 1" onclick="openTokenModal('pool1')">
+                        <div id="tokenASelect" class="token-select" data-address="0x6B175474E89094C44Da98b954EedeAC495271d0F" style="flex: 1" onclick="openTokenModal('pool1')">
                             <div class="token-icon"></div>
                             <span>AAA</span>
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
                                 <path d="M3 5L6 8L9 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
                         </div>
-                        <div class="token-select" style="flex: 1" onclick="openTokenModal('pool2')">
+                        <div id="tokenBSelect" class="token-select" data-address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606e48" style="flex: 1" onclick="openTokenModal('pool2')">
                             <div class="token-icon" style="background: linear-gradient(135deg, #F59E0B, #EF4444)"></div>
                             <span>BBB</span>
                             <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
@@ -250,41 +250,41 @@
                 <div class="mb-3">
                     <div class="input-group">
                         <label class="input-label">AAA Amount</label>
-                        <input type="text" class="input input-lg" placeholder="0.0" value="1000">
+                        <input id="tokenAAmount" type="text" class="input input-lg" placeholder="0.0" value="1000">
                     </div>
                 </div>
                 
                 <div class="mb-3">
                     <div class="input-group">
                         <label class="input-label">BBB Amount</label>
-                        <input type="text" class="input input-lg" placeholder="0.0" value="28,473.20">
+                        <input id="tokenBAmount" type="text" class="input input-lg" placeholder="0.0" value="28,473.20">
                     </div>
                 </div>
                 
                 <div class="price-info mb-3">
                     <div class="price-info-row">
                         <span class="price-info-label">Share of Pool</span>
-                        <span class="price-info-value">0.05%</span>
+                        <span id="poolShare" class="price-info-value">0.05%</span>
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">AAA per BBB</span>
-                        <span class="price-info-value">0.0351</span>
+                        <span id="priceAB" class="price-info-value">0.0351</span>
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">BBB per AAA</span>
-                        <span class="price-info-value">28.47</span>
+                        <span id="priceBA" class="price-info-value">28.47</span>
                     </div>
                 </div>
                 
-                <button class="btn btn-primary btn-full btn-lg">
+                <button id="addLiquidityBtn" class="btn btn-primary btn-full btn-lg">
                     Add Liquidity
                 </button>
             </div>
-            
+
             <div id="remove-liquidity" class="card card-elevated hidden">
                 <div class="mb-3">
                     <label class="input-label">Amount to Remove</label>
-                    <div class="slippage-options">
+                    <div id="removePercentOptions" class="slippage-options">
                         <button class="slippage-btn">25%</button>
                         <button class="slippage-btn active">50%</button>
                         <button class="slippage-btn">75%</button>
@@ -295,19 +295,19 @@
                 <div class="price-info mb-3">
                     <div class="price-info-row">
                         <span class="price-info-label">Pooled AAA</span>
-                        <span class="price-info-value">1,000 AAA</span>
+                        <span id="pooledTokenA" class="price-info-value">1,000 AAA</span>
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">Pooled BBB</span>
-                        <span class="price-info-value">28,473 BBB</span>
+                        <span id="pooledTokenB" class="price-info-value">28,473 BBB</span>
                     </div>
                     <div class="price-info-row">
                         <span class="price-info-label">Your pool share</span>
-                        <span class="price-info-value">0.05%</span>
+                        <span id="userPoolShare" class="price-info-value">0.05%</span>
                     </div>
                 </div>
                 
-                <button class="btn btn-primary btn-full btn-lg">
+                <button id="removeLiquidityBtn" class="btn btn-primary btn-full btn-lg">
                     Remove Liquidity
                 </button>
             </div>
@@ -532,7 +532,7 @@
                             </svg>
                         </div>
                         <div class="flex items-center gap-2">
-                            <input type="text" class="input" value="30" style="width: 100px;">
+                            <input id="txDeadline" type="text" class="input" value="30" style="width: 100px;">
                             <span class="text-muted">minutes</span>
                         </div>
                     </div>
