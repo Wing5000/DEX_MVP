@@ -22,22 +22,30 @@ function calculatePoolShare(amountIn, reserveIn) {
   return (amountIn / (reserveIn + amountIn)) * 100;
 }
 
-async function buildAddLiquidityTx({ tokenA, tokenB, amountA, amountB, to, deadline }, signer) {
-  const routerAbi = ['function addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256) returns (uint256,uint256,uint256)'];
-  const router = new Contract(addresses.router, routerAbi, signer);
-  return router.populateTransaction.addLiquidity(tokenA, tokenB, amountA, amountB, 0, 0, to, deadline);
+function calculatePriceImpact(amountIn, reserveIn, reserveOut, amountOut) {
+  if (!reserveIn || !reserveOut || reserveIn === 0) return 0;
+  const spotOut = amountIn * (reserveOut / reserveIn);
+  if (!spotOut) return 0;
+  return ((spotOut - amountOut) / spotOut) * 100;
 }
 
-async function buildRemoveLiquidityTx({ tokenA, tokenB, liquidity, to, deadline }, signer) {
+async function buildAddLiquidityTx({ tokenA, tokenB, amountA, amountB, amountAMin, amountBMin, to, deadline }, signer) {
+  const routerAbi = ['function addLiquidity(address,address,uint256,uint256,uint256,uint256,address,uint256) returns (uint256,uint256,uint256)'];
+  const router = new Contract(addresses.router, routerAbi, signer);
+  return router.populateTransaction.addLiquidity(tokenA, tokenB, amountA, amountB, amountAMin, amountBMin, to, deadline);
+}
+
+async function buildRemoveLiquidityTx({ tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline }, signer) {
   const routerAbi = ['function removeLiquidity(address,address,uint256,uint256,uint256,address,uint256) returns (uint256,uint256)'];
   const router = new Contract(addresses.router, routerAbi, signer);
-  return router.populateTransaction.removeLiquidity(tokenA, tokenB, liquidity, 0, 0, to, deadline);
+  return router.populateTransaction.removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
 }
 
 module.exports = {
   getPoolInfo,
   calculateCounterpart,
   calculatePoolShare,
+  calculatePriceImpact,
   buildAddLiquidityTx,
   buildRemoveLiquidityTx
 };
