@@ -1,4 +1,5 @@
 const { Contract, constants } = require('ethers');
+const { logAbi } = require('../logger');
 const addresses = require('../../contractMap');
 
 const routerAbi = [
@@ -26,6 +27,7 @@ async function quote(tokenIn, tokenOut, amountIn, provider) {
   const router = new Contract(addresses.router, routerAbi, provider);
   const path = [toAddress(tokenIn), toAddress(tokenOut)];
   const amounts = await router.getAmountsOut(amountIn, path);
+  logAbi('router.getAmountsOut', [amountIn, path], amounts);
   return amounts[1];
 }
 
@@ -33,13 +35,15 @@ async function buildSwapTx(params, signer) {
   const { tokenIn, tokenOut, amountIn, amountOutMin, to, deadline } = params;
   const router = new Contract(addresses.router, routerAbi, signer);
   const path = [toAddress(tokenIn), toAddress(tokenOut)];
-  return router.populateTransaction.swapExactTokensForTokens(
+  const tx = await router.populateTransaction.swapExactTokensForTokens(
     amountIn,
     amountOutMin,
     path,
     to,
     deadline
   );
+  logAbi('router.swapExactTokensForTokens', [amountIn, amountOutMin, path, to, deadline], tx);
+  return tx;
 }
 
 async function getPoolState(tokenA, tokenB, provider) {
@@ -47,13 +51,17 @@ async function getPoolState(tokenA, tokenB, provider) {
   const tokenAAddr = toAddress(tokenA);
   const tokenBAddr = toAddress(tokenB);
   const pairAddress = await factory.getPair(tokenAAddr, tokenBAddr);
+  logAbi('factory.getPair', [tokenAAddr, tokenBAddr], pairAddress);
   if (pairAddress === constants.AddressZero) {
     return null;
   }
   const pair = new Contract(pairAddress, pairAbi, provider);
   const [reserve0, reserve1] = await pair.getReserves();
+  logAbi('pair.getReserves', [], { reserve0, reserve1 });
   const token0 = await pair.token0();
+  logAbi('pair.token0', [], token0);
   const token1 = await pair.token1();
+  logAbi('pair.token1', [], token1);
   return {
     pairAddress,
     reserves: {

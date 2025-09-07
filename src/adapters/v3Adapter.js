@@ -1,4 +1,5 @@
 const { Contract } = require('ethers');
+const { logAbi } = require('../logger');
 const addresses = require('../../contractMap');
 
 const quoterAbi = [
@@ -26,19 +27,21 @@ function toAddress(token) {
 
 async function quote(tokenIn, tokenOut, amountIn, provider, fee = 3000) {
   const quoter = new Contract(addresses.v3.quoterV2, quoterAbi, provider);
-  return quoter.quoteExactInputSingle(
+  const result = await quoter.quoteExactInputSingle(
     toAddress(tokenIn),
     toAddress(tokenOut),
     fee,
     amountIn,
     0
   );
+  logAbi('quoter.quoteExactInputSingle', [tokenIn, tokenOut, fee, amountIn], result);
+  return result;
 }
 
 async function buildSwapTx(params, signer) {
   const { tokenIn, tokenOut, amountIn, amountOutMin, to, deadline, fee = 3000 } = params;
   const router = new Contract(addresses.v3.swapRouter, routerAbi, signer);
-  return router.populateTransaction.exactInputSingle({
+  const tx = await router.populateTransaction.exactInputSingle({
     tokenIn: toAddress(tokenIn),
     tokenOut: toAddress(tokenOut),
     fee,
@@ -48,11 +51,14 @@ async function buildSwapTx(params, signer) {
     amountOutMinimum: amountOutMin,
     sqrtPriceLimitX96: 0
   });
+  logAbi('router.exactInputSingle', [tokenIn, tokenOut, fee, to, deadline, amountIn, amountOutMin], tx);
+  return tx;
 }
 
 async function getPoolState(tokenA, tokenB, provider, fee = 3000) {
   const factory = new Contract(addresses.v3.factory, factoryAbi, provider);
   const poolAddress = await factory.getPool(toAddress(tokenA), toAddress(tokenB), fee);
+  logAbi('factory.getPool', [tokenA, tokenB, fee], poolAddress);
   if (poolAddress === '0x0000000000000000000000000000000000000000') {
     return null;
   }
@@ -61,6 +67,8 @@ async function getPoolState(tokenA, tokenB, provider, fee = 3000) {
     pool.slot0(),
     pool.liquidity()
   ]);
+  logAbi('pool.slot0', [], slot0);
+  logAbi('pool.liquidity', [], liquidity);
   return {
     poolAddress,
     sqrtPriceX96: slot0[0].toString(),

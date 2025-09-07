@@ -22,3 +22,17 @@ cp .env.example .env
 
 The build system (e.g. Vite or a plain JS bundler) replaces these variables during build time.
 `networkConfig.js` uses `VITE_SEPOLIA_RPC_URL` for RPC connections, and `contractMap.js` merges the other variables into `contractMap.json` so the application uses the provided addresses at runtime.
+
+## Global Settings
+
+A `settings.js` script exposes runtime feature flags on `window.DEX_SETTINGS` for troubleshooting:
+
+```js
+window.DEX_SETTINGS = {
+  LOG_ABI: false, // enable ABI call logging in development
+  USE_V2: true,   // use the v2 adapter (default)
+  USE_V3: false   // opt into the v3 adapter
+};
+```
+
+These values can be toggled from the browser console to switch adapters or enable logging without rebuilding.
