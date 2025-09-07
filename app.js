@@ -26,7 +26,7 @@
         const liquidity = require('./src/liquidity');
         const pools = require('./src/pools');
         const { toBaseUnits, fromBaseUnits } = require('./src/utils');
-        const addresses = require('./contractMap.json');
+        const addresses = require('./contractMap');
         const erc20Abi = [
             'function decimals() view returns (uint8)',
             'function symbol() view returns (string)',

@@ -1,5 +1,5 @@
 const { Contract, constants } = require('ethers');
-const addresses = require('../../contractMap.json');
+const addresses = require('../../contractMap');
 
 const routerAbi = [
   'function getAmountsOut(uint256 amountIn, address[] calldata path) external view returns (uint256[] memory amounts)',
