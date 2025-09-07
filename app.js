@@ -22,6 +22,7 @@
 
         const dexAdapter = require('./src/adapters/dexAdapter');
         const liquidity = require('./src/liquidity');
+        const pools = require('./src/pools');
         const addresses = require('./contractMap.json');
         const erc20Abi = [
             'function decimals() view returns (uint8)',
@@ -280,7 +281,38 @@
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
-        
+
+        // Pool data loading
+        async function loadPools() {
+            const tbody = document.getElementById('poolsTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center">Loading pools...</td></tr>`;
+            try {
+                const data = await pools.getPools(provider, pools.defaultPriceOracle);
+                tbody.innerHTML = '';
+                data.forEach(pool => {
+                    if (pool.error) {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td colspan="6" class="text-center text-error">${pool.name || 'Unknown'}: ${pool.error}</td>`;
+                        tbody.appendChild(tr);
+                        return;
+                    }
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                            <td>${pool.name}</td>
+                            <td class="text-mono">$${pool.tvl.toFixed(2)}</td>
+                            <td class="text-mono">-</td>
+                            <td class="text-mono">-</td>
+                            <td>-</td>
+                            <td><button class="btn btn-sm btn-primary">Add</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-error">${err.message}</td></tr>`;
+            }
+        }
+
         // Screen Navigation
         function switchScreen(screenName) {
             // Hide all screens
@@ -298,6 +330,9 @@
                     link.classList.add('active');
                 }
             });
+            if (screenName === 'pools') {
+                loadPools();
+            }
         }
         
         // Nav link click handlers
