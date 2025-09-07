@@ -323,7 +323,7 @@
             </div>
             
             <div class="card">
-                <table class="table">
+                <table id="poolsTable" class="table">
                     <thead>
                         <tr>
                             <th>Pool</th>
@@ -334,70 +334,8 @@
                             <th></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <div class="flex items-center gap-2">
-                                    <div class="flex">
-                                        <div class="token-icon" style="width: 32px; height: 32px;"></div>
-                                        <div class="token-icon" style="width: 32px; height: 32px; margin-left: -12px; background: linear-gradient(135deg, #F59E0B, #EF4444)"></div>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">AAA/BBB</div>
-                                        <div class="text-xs text-muted">0.05% fee</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="text-mono">$24.7M</td>
-                            <td class="text-mono">$3.2M</td>
-                            <td class="text-mono">$1,600</td>
-                            <td><span class="badge badge-success">12.4%</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-primary">Add</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div class="flex items-center gap-2">
-                                    <div class="flex">
-                                        <div class="token-icon" style="width: 32px; height: 32px; background: linear-gradient(135deg, #10B981, #3B82F6)"></div>
-                                        <div class="token-icon" style="width: 32px; height: 32px; margin-left: -12px; background: linear-gradient(135deg, #8B5CF6, #EC4899)"></div>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">USDC/ETH</div>
-                                        <div class="text-xs text-muted">0.30% fee</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="text-mono">$142.3M</td>
-                            <td class="text-mono">$18.7M</td>
-                            <td class="text-mono">$56,100</td>
-                            <td><span class="badge badge-success">8.7%</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-primary">Add</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <div class="flex items-center gap-2">
-                                    <div class="flex">
-                                        <div class="token-icon" style="width: 32px; height: 32px; background: linear-gradient(135deg, #F59E0B, #EF4444)"></div>
-                                        <div class="token-icon" style="width: 32px; height: 32px; margin-left: -12px; background: linear-gradient(135deg, #10B981, #3B82F6)"></div>
-                                    </div>
-                                    <div>
-                                        <div class="font-medium">BBB/USDC</div>
-                                        <div class="text-xs text-muted">0.05% fee</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="text-mono">$8.4M</td>
-                            <td class="text-mono">$967K</td>
-                            <td class="text-mono">$483</td>
-                            <td><span class="badge badge-warning">5.2%</span></td>
-                            <td>
-                                <button class="btn btn-sm btn-primary">Add</button>
-                            </td>
-                        </tr>
+                    <tbody id="poolsTableBody">
+                        <tr><td colspan="6" class="text-center">Loading pools...</td></tr>
                     </tbody>
                 </table>
             </div>
