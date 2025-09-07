@@ -414,6 +414,12 @@
             background: linear-gradient(135deg, var(--brand), var(--info));
         }
 
+        .token-row {
+            padding: var(--s2);
+            cursor: pointer;
+            border-radius: var(--radius-md);
+        }
+
         .token-item.hover > div {
             background: var(--bg-elev);
         }
