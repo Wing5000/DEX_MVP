@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const dexAdapter = require('./adapters/dexAdapter');
 const addresses = require('../contractMap.json');
+const { fromBaseUnits } = require('./utils');
 
 async function defaultPriceOracle() {
   // Placeholder price oracle - returns 1 USD for any token
@@ -17,13 +18,13 @@ async function getPools(provider, priceOracle = defaultPriceOracle) {
         results.push({ ...pair, error: 'Pool not found' });
         continue;
       }
-      const reserveA = state.reserves[pair.tokenA.toLowerCase()] || '0';
-      const reserveB = state.reserves[pair.tokenB.toLowerCase()] || '0';
+      const reserveA = BigInt(state.reserves[pair.tokenA.toLowerCase()] || '0');
+      const reserveB = BigInt(state.reserves[pair.tokenB.toLowerCase()] || '0');
       const priceA = await priceOracle(pair.tokenA);
       const priceB = await priceOracle(pair.tokenB);
       const tvl =
-        parseFloat(ethers.utils.formatUnits(reserveA, 18)) * priceA +
-        parseFloat(ethers.utils.formatUnits(reserveB, 18)) * priceB;
+        parseFloat(fromBaseUnits(reserveA, 18)) * priceA +
+        parseFloat(fromBaseUnits(reserveB, 18)) * priceB;
       results.push({
         ...pair,
         pairAddress: state.pairAddress,

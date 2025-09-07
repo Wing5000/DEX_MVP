@@ -25,6 +25,7 @@
         const dexAdapter = require('./src/adapters/dexAdapter');
         const liquidity = require('./src/liquidity');
         const pools = require('./src/pools');
+        const { toBaseUnits, fromBaseUnits } = require('./src/utils');
         const addresses = require('./contractMap.json');
         const erc20Abi = [
             'function decimals() view returns (uint8)',
@@ -266,34 +267,38 @@
                     : new ethers.Contract(tokenOut, erc20Abi, signer);
 
                 if (tokenIn.toLowerCase() === 'eth') {
-                    const wrapTx = await tokenInContract.deposit({ value: ethers.utils.parseEther(amountInRaw) });
+                    const wrapTx = await tokenInContract.deposit({ value: toBaseUnits(amountInRaw, 18) });
                     await wrapTx.wait();
                     tokenIn = addresses.weth;
                 }
 
-                const [decIn, decOut, balIn, balOut] = await Promise.all([
+                const [decIn, decOut, balInBN, balOutBN] = await Promise.all([
                     tokenInContract.decimals(),
                     tokenOutContract.decimals(),
                     tokenInContract.balanceOf(user),
                     tokenOutContract.balanceOf(user)
                 ]);
 
-                const amountIn = ethers.utils.parseUnits(amountInRaw, decIn);
-                if (balIn.lt(amountIn)) {
+                const balIn = BigInt(balInBN.toString());
+                const amountIn = toBaseUnits(amountInRaw, decIn);
+                if (balIn < amountIn) {
                     showToast('Insufficient balance', 'error');
                     return;
                 }
 
-                const quoteOut = await dexAdapter.quote(tokenIn, tokenOut, amountIn, provider);
+                const quoteOutBN = await dexAdapter.quote(tokenIn, tokenOut, amountIn, provider);
+                const quoteOut = BigInt(quoteOutBN.toString());
 
                 const poolState = await dexAdapter.getPoolState(tokenIn, tokenOut, provider);
                 if (poolState && poolState.reserves) {
                     const reserveInKey = tokenIn.toLowerCase();
                     const reserveOutKey = tokenOut.toLowerCase() === 'eth' ? addresses.weth.toLowerCase() : tokenOut.toLowerCase();
-                    const reserveInF = parseFloat(ethers.utils.formatUnits(poolState.reserves[reserveInKey] || '0', decIn));
-                    const reserveOutF = parseFloat(ethers.utils.formatUnits(poolState.reserves[reserveOutKey] || '0', decOut));
-                    const amountInF = parseFloat(ethers.utils.formatUnits(amountIn, decIn));
-                    const quoteOutF = parseFloat(ethers.utils.formatUnits(quoteOut, decOut));
+                    const reserveIn = BigInt(poolState.reserves[reserveInKey] || '0');
+                    const reserveOut = BigInt(poolState.reserves[reserveOutKey] || '0');
+                    const reserveInF = parseFloat(fromBaseUnits(reserveIn, decIn));
+                    const reserveOutF = parseFloat(fromBaseUnits(reserveOut, decOut));
+                    const amountInF = parseFloat(fromBaseUnits(amountIn, decIn));
+                    const quoteOutF = parseFloat(fromBaseUnits(quoteOut, decOut));
                     const impact = liquidity.calculatePriceImpact(amountInF, reserveInF, reserveOutF, quoteOutF);
                     const impactEl = document.getElementById('priceImpact');
                     if (impactEl) {
@@ -302,15 +307,16 @@
                 }
 
                 const slippageBps = Math.floor(slippagePct * 100);
-                const minOut = quoteOut.mul(10000 - slippageBps).div(10000);
+                const minOut = quoteOut * BigInt(10000 - slippageBps) / 10000n;
 
                 const minEl = document.getElementById('minReceived');
                 if (minEl) {
-                    minEl.textContent = ethers.utils.formatUnits(minOut, decOut);
+                    minEl.textContent = fromBaseUnits(minOut, decOut);
                 }
 
-                const allowance = await tokenInContract.allowance(user, addresses.router);
-                if (allowance.lt(amountIn)) {
+                const allowanceBN = await tokenInContract.allowance(user, addresses.router);
+                const allowance = BigInt(allowanceBN.toString());
+                if (allowance < amountIn) {
                     const approveTx = await tokenInContract.approve(addresses.router, amountIn);
                     await approveTx.wait();
                 }
@@ -483,8 +489,9 @@
         async function ensureApproval(token, amount, signer, spender) {
             const contract = new ethers.Contract(token, erc20Abi, signer);
             const owner = await signer.getAddress();
-            const allowance = await contract.allowance(owner, spender);
-            if (allowance.lt(amount)) {
+            const allowanceBN = await contract.allowance(owner, spender);
+            const allowance = BigInt(allowanceBN.toString());
+            if (allowance < amount) {
                 const tx = await contract.approve(spender, amount);
                 await tx.wait();
             }
@@ -499,8 +506,8 @@
             if (!tokenA || !tokenB) return;
             const pool = await liquidity.getPoolInfo(tokenA, tokenB, provider);
             if (!pool || !pool.reserves) return;
-            const reserveA = parseFloat(ethers.utils.formatUnits(pool.reserves[tokenA.toLowerCase()] || '0', 18));
-            const reserveB = parseFloat(ethers.utils.formatUnits(pool.reserves[tokenB.toLowerCase()] || '0', 18));
+            const reserveA = parseFloat(fromBaseUnits(BigInt(pool.reserves[tokenA.toLowerCase()] || '0'), 18));
+            const reserveB = parseFloat(fromBaseUnits(BigInt(pool.reserves[tokenB.toLowerCase()] || '0'), 18));
             let amountA, amountB;
             if (changed === 'A') {
                 amountA = parseFloat(tokenAInput.value) || 0;
@@ -532,17 +539,19 @@
                 const signer = provider.getSigner();
                 const tokenA = document.getElementById('tokenASelect').dataset.address;
                 const tokenB = document.getElementById('tokenBSelect').dataset.address;
-                const amountA = ethers.utils.parseUnits(tokenAInput.value || '0', 18);
-                const amountB = ethers.utils.parseUnits(tokenBInput.value || '0', 18);
+                const amountA = toBaseUnits(tokenAInput.value || '0', 18);
+                const amountB = toBaseUnits(tokenBInput.value || '0', 18);
                 const to = await signer.getAddress();
 
                 const tokenAContract = new ethers.Contract(tokenA, erc20Abi, signer);
                 const tokenBContract = new ethers.Contract(tokenB, erc20Abi, signer);
-                const [balA, balB] = await Promise.all([
+                const [balA_BN, balB_BN] = await Promise.all([
                     tokenAContract.balanceOf(to),
                     tokenBContract.balanceOf(to)
                 ]);
-                if (balA.lt(amountA) || balB.lt(amountB)) {
+                const balA = BigInt(balA_BN.toString());
+                const balB = BigInt(balB_BN.toString());
+                if (balA < amountA || balB < amountB) {
                     showToast('Insufficient balance', 'error');
                     return;
                 }
@@ -552,8 +561,8 @@
 
                 const slippageText = document.getElementById('slippage')?.textContent || '0.5%';
                 const slippageBps = Math.floor(parseFloat(slippageText) * 100);
-                const amountAMin = amountA.mul(10000 - slippageBps).div(10000);
-                const amountBMin = amountB.mul(10000 - slippageBps).div(10000);
+                const amountAMin = amountA * BigInt(10000 - slippageBps) / 10000n;
+                const amountBMin = amountB * BigInt(10000 - slippageBps) / 10000n;
 
                 const deadlineMin = parseInt(document.getElementById('txDeadline').value) || 30;
                 const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
@@ -574,16 +583,18 @@
             const signer = provider.getSigner();
             const user = await signer.getAddress();
             const lp = new ethers.Contract(pool.pairAddress, erc20Abi, provider);
-            const [balance, totalSupply] = await Promise.all([
+            const [balanceBN, totalSupplyBN] = await Promise.all([
                 lp.balanceOf(user),
                 lp.totalSupply()
             ]);
-            const portion = balance.mul(Math.floor(pct * 100)).div(100);
-            const amountA = ethers.BigNumber.from(pool.reserves[tokenA.toLowerCase()] || '0').mul(portion).div(totalSupply);
-            const amountB = ethers.BigNumber.from(pool.reserves[tokenB.toLowerCase()] || '0').mul(portion).div(totalSupply);
-            document.getElementById('pooledTokenA').textContent = `${ethers.utils.formatUnits(amountA, 18)} AAA`;
-            document.getElementById('pooledTokenB').textContent = `${ethers.utils.formatUnits(amountB, 18)} BBB`;
-            const share = portion.mul(10000).div(totalSupply).toNumber() / 100;
+            const balance = BigInt(balanceBN.toString());
+            const totalSupply = BigInt(totalSupplyBN.toString());
+            const portion = balance * BigInt(Math.floor(pct * 100)) / 100n;
+            const amountA = BigInt(pool.reserves[tokenA.toLowerCase()] || '0') * portion / totalSupply;
+            const amountB = BigInt(pool.reserves[tokenB.toLowerCase()] || '0') * portion / totalSupply;
+            document.getElementById('pooledTokenA').textContent = `${fromBaseUnits(amountA, 18)} AAA`;
+            document.getElementById('pooledTokenB').textContent = `${fromBaseUnits(amountB, 18)} BBB`;
+            const share = Number(portion * 10000n / totalSupply) / 100;
             document.getElementById('userPoolShare').textContent = share.toFixed(2) + '%';
         }
 
@@ -607,22 +618,22 @@
                 if (!pool || !pool.pairAddress) return;
                 const user = await signer.getAddress();
                 const lp = new ethers.Contract(pool.pairAddress, erc20Abi, signer);
-                const balance = await lp.balanceOf(user);
+                const balanceBN = await lp.balanceOf(user);
+                const balance = BigInt(balanceBN.toString());
                 const pct = parseInt(document.querySelector('#removePercentOptions .slippage-btn.active').textContent) / 100;
-                const liquidityPortion = balance.mul(Math.floor(pct * 100)).div(100);
-                if (balance.lt(liquidityPortion)) {
+                const liquidityPortion = balance * BigInt(Math.floor(pct * 100)) / 100n;
+                if (balance < liquidityPortion) {
                     showToast('Insufficient balance', 'error');
                     return;
                 }
                 await ensureApproval(pool.pairAddress, liquidityPortion, signer, addresses.router);
-
-                const totalSupply = ethers.BigNumber.from(pool.totalSupply || '0');
-                const amountAExp = ethers.BigNumber.from(pool.reserves[tokenA.toLowerCase()] || '0').mul(liquidityPortion).div(totalSupply);
-                const amountBExp = ethers.BigNumber.from(pool.reserves[tokenB.toLowerCase()] || '0').mul(liquidityPortion).div(totalSupply);
+                const totalSupply = BigInt(pool.totalSupply || '0');
+                const amountAExp = BigInt(pool.reserves[tokenA.toLowerCase()] || '0') * liquidityPortion / totalSupply;
+                const amountBExp = BigInt(pool.reserves[tokenB.toLowerCase()] || '0') * liquidityPortion / totalSupply;
                 const slippageText = document.getElementById('slippage')?.textContent || '0.5%';
                 const slippageBps = Math.floor(parseFloat(slippageText) * 100);
-                const amountAMin = amountAExp.mul(10000 - slippageBps).div(10000);
-                const amountBMin = amountBExp.mul(10000 - slippageBps).div(10000);
+                const amountAMin = amountAExp * BigInt(10000 - slippageBps) / 10000n;
+                const amountBMin = amountBExp * BigInt(10000 - slippageBps) / 10000n;
 
                 const deadlineMin = parseInt(document.getElementById('txDeadline').value) || 30;
                 const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
