@@ -414,7 +414,7 @@
                 </div>
                 
                 <div class="token-list">
-                    <div class="token-item" onclick="selectToken('AAA')">
+                    <div class="token-item" data-token="AAA">
                         <div class="flex items-center justify-between" style="padding: var(--s2); cursor: pointer; border-radius: var(--radius-md);">
                             <div class="flex items-center gap-2">
                                 <div class="token-icon"></div>
@@ -426,7 +426,7 @@
                             <div class="text-mono">1,234.56</div>
                         </div>
                     </div>
-                    <div class="token-item" onclick="selectToken('BBB')">
+                    <div class="token-item" data-token="BBB">
                         <div class="flex items-center justify-between" style="padding: var(--s2); cursor: pointer; border-radius: var(--radius-md);">
                             <div class="flex items-center gap-2">
                                 <div class="token-icon" style="background: linear-gradient(135deg, #F59E0B, #EF4444)"></div>
@@ -438,7 +438,7 @@
                             <div class="text-mono">567.89</div>
                         </div>
                     </div>
-                    <div class="token-item" onclick="selectToken('USDC')">
+                    <div class="token-item" data-token="USDC">
                         <div class="flex items-center justify-between" style="padding: var(--s2); cursor: pointer; border-radius: var(--radius-md);">
                             <div class="flex items-center gap-2">
                                 <div class="token-icon" style="background: linear-gradient(135deg, #10B981, #3B82F6)"></div>

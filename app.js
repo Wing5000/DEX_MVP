@@ -171,7 +171,18 @@
                 this.querySelector('div').style.background = 'transparent';
             });
         });
-        
+
+        // Token selection via event delegation
+        document.querySelectorAll('.token-list').forEach(list => {
+            list.addEventListener('click', (event) => {
+                const tokenItem = event.target.closest('.token-item');
+                if (tokenItem) {
+                    const token = tokenItem.dataset.token;
+                    selectToken(token);
+                }
+            });
+        });
+
         // Simulate loading states
         function showLoadingState() {
             const skeleton = document.createElement('div');
