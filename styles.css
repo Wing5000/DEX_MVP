@@ -406,12 +406,16 @@
         .token-select:hover {
             border-color: var(--brand);
         }
-        
+
         .token-icon {
             width: 24px;
             height: 24px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--brand), var(--info));
+        }
+
+        .token-item.hover > div {
+            background: var(--bg-elev);
         }
         
         /* Swap Interface */
