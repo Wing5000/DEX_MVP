@@ -20,6 +20,8 @@
             provider = new ethers.providers.JsonRpcProvider(sepoliaConfig.rpcUrl);
         }
 
+        const GAS_MULTIPLIER = parseFloat(localStorage.getItem('gasMultiplier') || '1.15');
+
         const dexAdapter = require('./src/adapters/dexAdapter');
         const liquidity = require('./src/liquidity');
         const pools = require('./src/pools');
@@ -283,6 +285,22 @@
                 }
 
                 const quoteOut = await dexAdapter.quote(tokenIn, tokenOut, amountIn, provider);
+
+                const poolState = await dexAdapter.getPoolState(tokenIn, tokenOut, provider);
+                if (poolState && poolState.reserves) {
+                    const reserveInKey = tokenIn.toLowerCase();
+                    const reserveOutKey = tokenOut.toLowerCase() === 'eth' ? addresses.weth.toLowerCase() : tokenOut.toLowerCase();
+                    const reserveInF = parseFloat(ethers.utils.formatUnits(poolState.reserves[reserveInKey] || '0', decIn));
+                    const reserveOutF = parseFloat(ethers.utils.formatUnits(poolState.reserves[reserveOutKey] || '0', decOut));
+                    const amountInF = parseFloat(ethers.utils.formatUnits(amountIn, decIn));
+                    const quoteOutF = parseFloat(ethers.utils.formatUnits(quoteOut, decOut));
+                    const impact = liquidity.calculatePriceImpact(amountInF, reserveInF, reserveOutF, quoteOutF);
+                    const impactEl = document.getElementById('priceImpact');
+                    if (impactEl) {
+                        impactEl.textContent = impact.toFixed(2) + '%';
+                    }
+                }
+
                 const slippageBps = Math.floor(slippagePct * 100);
                 const minOut = quoteOut.mul(10000 - slippageBps).div(10000);
 
@@ -307,6 +325,9 @@
                     to: user,
                     deadline
                 }, signer);
+
+                const gasEstimate = await signer.estimateGas(txRequest);
+                txRequest.gasLimit = gasEstimate.mul(Math.floor(GAS_MULTIPLIER * 100)).div(100);
 
                 const txResponse = await signer.sendTransaction(txRequest);
                 showToast('Transaction submitted', 'info');
@@ -480,19 +501,20 @@
             if (!pool || !pool.reserves) return;
             const reserveA = parseFloat(ethers.utils.formatUnits(pool.reserves[tokenA.toLowerCase()] || '0', 18));
             const reserveB = parseFloat(ethers.utils.formatUnits(pool.reserves[tokenB.toLowerCase()] || '0', 18));
+            let amountA, amountB;
             if (changed === 'A') {
-                const amountA = parseFloat(tokenAInput.value) || 0;
-                const amountB = liquidity.calculateCounterpart(amountA, reserveA, reserveB);
+                amountA = parseFloat(tokenAInput.value) || 0;
+                amountB = liquidity.calculateCounterpart(amountA, reserveA, reserveB);
                 tokenBInput.value = amountB ? amountB.toFixed(6) : '';
-                const share = liquidity.calculatePoolShare(amountA, reserveA);
-                document.getElementById('poolShare').textContent = share.toFixed(2) + '%';
             } else {
-                const amountB = parseFloat(tokenBInput.value) || 0;
-                const amountA = liquidity.calculateCounterpart(amountB, reserveB, reserveA);
+                amountB = parseFloat(tokenBInput.value) || 0;
+                amountA = liquidity.calculateCounterpart(amountB, reserveB, reserveA);
                 tokenAInput.value = amountA ? amountA.toFixed(6) : '';
-                const share = liquidity.calculatePoolShare(amountA, reserveA);
-                document.getElementById('poolShare').textContent = share.toFixed(2) + '%';
             }
+            const share = liquidity.calculatePoolShare(amountA, reserveA);
+            document.getElementById('poolShare').textContent = share.toFixed(2) + '%';
+            const impact = liquidity.calculatePriceImpact(amountA, reserveA, reserveB, amountB);
+            if (console && !isNaN(impact)) console.log('Add liquidity price impact', impact);
             if (reserveA && reserveB) {
                 document.getElementById('priceAB').textContent = (reserveA / reserveB).toFixed(4);
                 document.getElementById('priceBA').textContent = (reserveB / reserveA).toFixed(4);
@@ -512,12 +534,32 @@
                 const tokenB = document.getElementById('tokenBSelect').dataset.address;
                 const amountA = ethers.utils.parseUnits(tokenAInput.value || '0', 18);
                 const amountB = ethers.utils.parseUnits(tokenBInput.value || '0', 18);
+                const to = await signer.getAddress();
+
+                const tokenAContract = new ethers.Contract(tokenA, erc20Abi, signer);
+                const tokenBContract = new ethers.Contract(tokenB, erc20Abi, signer);
+                const [balA, balB] = await Promise.all([
+                    tokenAContract.balanceOf(to),
+                    tokenBContract.balanceOf(to)
+                ]);
+                if (balA.lt(amountA) || balB.lt(amountB)) {
+                    showToast('Insufficient balance', 'error');
+                    return;
+                }
+
                 await ensureApproval(tokenA, amountA, signer, addresses.router);
                 await ensureApproval(tokenB, amountB, signer, addresses.router);
-                const to = await signer.getAddress();
+
+                const slippageText = document.getElementById('slippage')?.textContent || '0.5%';
+                const slippageBps = Math.floor(parseFloat(slippageText) * 100);
+                const amountAMin = amountA.mul(10000 - slippageBps).div(10000);
+                const amountBMin = amountB.mul(10000 - slippageBps).div(10000);
+
                 const deadlineMin = parseInt(document.getElementById('txDeadline').value) || 30;
                 const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
-                const tx = await liquidity.buildAddLiquidityTx({ tokenA, tokenB, amountA, amountB, to, deadline }, signer);
+                const tx = await liquidity.buildAddLiquidityTx({ tokenA, tokenB, amountA, amountB, amountAMin, amountBMin, to, deadline }, signer);
+                const gasEstimate = await signer.estimateGas(tx);
+                tx.gasLimit = gasEstimate.mul(Math.floor(GAS_MULTIPLIER * 100)).div(100);
                 await signer.sendTransaction(tx);
                 showToast('Add liquidity transaction sent', 'success');
             });
@@ -568,10 +610,25 @@
                 const balance = await lp.balanceOf(user);
                 const pct = parseInt(document.querySelector('#removePercentOptions .slippage-btn.active').textContent) / 100;
                 const liquidityPortion = balance.mul(Math.floor(pct * 100)).div(100);
+                if (balance.lt(liquidityPortion)) {
+                    showToast('Insufficient balance', 'error');
+                    return;
+                }
                 await ensureApproval(pool.pairAddress, liquidityPortion, signer, addresses.router);
+
+                const totalSupply = ethers.BigNumber.from(pool.totalSupply || '0');
+                const amountAExp = ethers.BigNumber.from(pool.reserves[tokenA.toLowerCase()] || '0').mul(liquidityPortion).div(totalSupply);
+                const amountBExp = ethers.BigNumber.from(pool.reserves[tokenB.toLowerCase()] || '0').mul(liquidityPortion).div(totalSupply);
+                const slippageText = document.getElementById('slippage')?.textContent || '0.5%';
+                const slippageBps = Math.floor(parseFloat(slippageText) * 100);
+                const amountAMin = amountAExp.mul(10000 - slippageBps).div(10000);
+                const amountBMin = amountBExp.mul(10000 - slippageBps).div(10000);
+
                 const deadlineMin = parseInt(document.getElementById('txDeadline').value) || 30;
                 const deadline = Math.floor(Date.now() / 1000) + deadlineMin * 60;
-                const tx = await liquidity.buildRemoveLiquidityTx({ tokenA, tokenB, liquidity: liquidityPortion, to: user, deadline }, signer);
+                const tx = await liquidity.buildRemoveLiquidityTx({ tokenA, tokenB, liquidity: liquidityPortion, amountAMin, amountBMin, to: user, deadline }, signer);
+                const gasEstimate = await signer.estimateGas(tx);
+                tx.gasLimit = gasEstimate.mul(Math.floor(GAS_MULTIPLIER * 100)).div(100);
                 await signer.sendTransaction(tx);
                 showToast('Remove liquidity transaction sent', 'success');
             });
