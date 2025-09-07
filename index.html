@@ -19,7 +19,7 @@
             <div class="nav-actions">
                 <div class="network-badge" onclick="openNetworkModal()">
                     <span class="network-indicator"></span>
-                    <span>Ethereum</span>
+                    <span id="networkName"></span>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
                         <path d="M3 5L6 8L9 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                     </svg>
@@ -556,24 +556,7 @@
                 <button class="btn btn-ghost btn-sm" onclick="closeModal('networkModal')">✕</button>
             </div>
             <div class="modal-body">
-                <div class="flex flex-col gap-2">
-                    <button class="btn btn-secondary btn-full justify-between" onclick="selectNetwork('Ethereum')">
-                        <span>Ethereum</span>
-                        <span class="network-indicator"></span>
-                    </button>
-                    <button class="btn btn-secondary btn-full justify-between" onclick="selectNetwork('Polygon')">
-                        <span>Polygon</span>
-                    </button>
-                    <button class="btn btn-secondary btn-full justify-between" onclick="selectNetwork('Arbitrum')">
-                        <span>Arbitrum</span>
-                    </button>
-                    <button class="btn btn-secondary btn-full justify-between" onclick="selectNetwork('Optimism')">
-                        <span>Optimism</span>
-                    </button>
-                    <button class="btn btn-secondary btn-full justify-between" onclick="selectNetwork('BSC')">
-                        <span>BSC</span>
-                    </button>
-                </div>
+                <div id="networkList" class="flex flex-col gap-2"></div>
             </div>
         </div>
     </div>
@@ -581,6 +564,8 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
 
+        <script src="./networkConfig.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
         <script src="./app.js"></script>
 </body>
 </html>
