@@ -413,7 +413,15 @@
             border-radius: 50%;
             background: linear-gradient(135deg, var(--brand), var(--info));
         }
-        
+
+        .token-item > div {
+            transition: background 0.2s;
+        }
+
+        .token-item.hover > div {
+            background: var(--bg-elev);
+        }
+
         /* Swap Interface */
         .swap-container {
             max-width: 480px;

@@ -155,25 +155,29 @@
         });
         
         // Slippage button handlers
-        document.querySelectorAll('.slippage-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                this.parentElement.querySelectorAll('.slippage-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-        
-        // Add smooth hover effects to token items
-        document.querySelectorAll('.token-item').forEach(item => {
-            item.addEventListener('mouseenter', function() {
-                this.querySelector('div').style.background = 'var(--bg-elev)';
-            });
-            item.addEventListener('mouseleave', function() {
-                this.querySelector('div').style.background = 'transparent';
+        document.querySelectorAll('.slippage-options').forEach(container => {
+            container.addEventListener('click', (event) => {
+                const btn = event.target.closest('.slippage-btn');
+                if (!btn || !container.contains(btn)) return;
+                container.querySelectorAll('.slippage-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
             });
         });
 
-        // Token selection via event delegation
+        // Token list interactions via event delegation
         document.querySelectorAll('.token-list').forEach(list => {
+            list.addEventListener('mouseenter', (event) => {
+                const item = event.target.closest('.token-item');
+                if (item && list.contains(item)) {
+                    item.classList.add('hover');
+                }
+            }, true);
+            list.addEventListener('mouseleave', (event) => {
+                const item = event.target.closest('.token-item');
+                if (item && list.contains(item)) {
+                    item.classList.remove('hover');
+                }
+            }, true);
             list.addEventListener('click', (event) => {
                 const tokenItem = event.target.closest('.token-item');
                 if (tokenItem) {
